@@ -1,30 +1,36 @@
-// testmongodb.js
-// test mongodb connection
-// import required modules
 const express = require('express');
-var mongoose = require('mongoose');
-// create server app
-const app = express();
+const mongoose = require('mongoose');
 
-//Set up mongoose connection
-var mongoDBURL = 'mongodb://127.0.0.1/shopping';
-// connect to mongo db
-mongoose.connect(mongoDBURL, {
- useNewUrlParser: true, useUnifiedTopology: true
-}).then(function (db) {
- console.log("You are connected to the shopping database");
-}, function (err) {
- console.log('Cannot connected to the shopping database', err)
-})
-// open connection to shopping database
-mongoose.Promise = global.Promise;
-var db = mongoose.connection;
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
-// use port 5000
+const app = express();
 const apiPort = 5000;
-// return server info as a default get requests
+
+const mongoDBURL = process.env.MONGODB_URL || 'mongodb://127.0.0.1/shopping';
+
+mongoose.connect(mongoDBURL)
+  .then(() => {
+    console.log("Connected to the MongoDB database");
+  })
+  .catch((err) => {
+    console.error("Error connecting to MongoDB:", err);
+    process.exit(1); // Exit process on failure
+  });
+
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'MongoDB connection error:'));
+
 app.get('/', (req, res) => {
- res.send('Welcome to Bookstore App');
+  res.send('Welcome to Bookstore App');
 });
-// start the server, listen for requests
-app.listen(apiPort, () => console.log(`Bookstore App running on port ${apiPort}`));
+
+const server = app.listen(apiPort, () => {
+  console.log(`Bookstore App running on port ${apiPort}`);
+});
+
+// Close MongoDB connection on server shutdown
+process.on('SIGINT', async () => {
+  await mongoose.disconnect();
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
